@@ -1,0 +1,18 @@
+<!-- app/templates/songs.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>All Songs</title>
+</head>
+<body>
+    <h1>🎶 All Songs with YouTube Links</h1>
+    <ul>
+        {% for song in songs %}
+        <li>
+            <strong>{{ song.title }}</strong> by {{ song.artist }} –
+            <a href="{{ url_for('main.play_song', song_id=song.id) }}">▶️ Play</a>
+        </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
