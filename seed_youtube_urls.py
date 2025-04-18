@@ -1,11 +1,19 @@
 from app import create_app, db
 from app.models import Song
 from googleapiclient.discovery import build
+import os
 import time
 
-# Setup
+# 🔧 Ensure instance folder exists and correct relative path
+basedir = os.path.abspath(os.path.dirname(__file__))
+instance_path = os.path.join(basedir, 'instance')
+os.makedirs(instance_path, exist_ok=True)
+
+# 🔧 Load the app with correct instance path
 app = create_app()
-YOUTUBE_API_KEY = 'AIzaSyAxoKdULhXnoOgC7QfLpnICULdpaiyB98I'  # 🔐 Replace with your API key
+
+# 🔐 YouTube API Setup
+YOUTUBE_API_KEY = 'AIzaSyAxoKdULhXnoOgC7QfLpnICULdpaiyB98I'
 youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
 
 def fetch_youtube_url(song_title, artist):
@@ -33,7 +41,7 @@ with app.app_context():
             if youtube_url:
                 song.youtube_url = youtube_url
                 print(f"✅ Updated: {song.title} -> {youtube_url}")
-            time.sleep(1)  # To respect API quota
+            time.sleep(1)
 
     db.session.commit()
     print("🎉 All available YouTube URLs updated.")

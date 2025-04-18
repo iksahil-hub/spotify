@@ -6,6 +6,7 @@ from flask_migrate import Migrate
 from flask_socketio import SocketIO
 from flask_jwt_extended import JWTManager
 
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -19,7 +20,10 @@ def create_app():
     app = Flask(__name__)
 
     # Configuration
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///database.db")
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    instance_db_path = os.path.join(base_dir, '..', 'instance', 'database.db')
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", f"sqlite:///{instance_db_path}")
+
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "your-secret-key")
 
@@ -35,8 +39,9 @@ def create_app():
     # Register blueprints/routes
     from app.routes import main
     app.register_blueprint(main)
-
     return app
 
+   
+    
 # Export for external access
 __all__ = ['db', 'socketio']

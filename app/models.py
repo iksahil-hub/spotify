@@ -9,7 +9,7 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)  # Store hashed password
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    is_admin = db.Column(db.Boolean, default=False)
     # Relationships
     playlists = db.relationship('Playlist', backref='user', lazy=True)
 
@@ -30,7 +30,7 @@ class Song(db.Model):
     duration = db.Column(db.Integer, nullable=False)  # Duration in seconds
     youtube_url = db.Column(db.String(500))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    is_public = db.Column(db.Boolean, default=True)
     # Relationship
     playlists = db.relationship('PlaylistSong', backref='song', lazy=True)
 

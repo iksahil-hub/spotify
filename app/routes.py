@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
 from werkzeug.utils import secure_filename
@@ -9,6 +8,7 @@ import json
 import os
 import requests
 
+
 main = Blueprint("main", __name__)
 user_playback_queues = {}
 user_recently_played = {}
@@ -16,9 +16,14 @@ user_favorites = {}
 
 UPLOAD_FOLDER = "app/static/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-YOUTUBE_API_KEY = "AIzaSyAxoKdULhXnoOgC7QfLpnICULdpaiyB98I"  # Replace with your actual API key
+YOUTUBE_API_KEY = "AIzaSyAxoKdULhXnoOgC7QfLpnICULdpaiyB98I"
 
 ### AUTH ROUTES ###
+
+@main.route('/')
+def home():
+    songs = Song.query.all()  # fetch songs from DB
+    return render_template('home.html', songs=songs)
 
 @main.route('/signup', methods=['POST'])
 def signup():
@@ -67,18 +72,16 @@ def get_song(song_id):
 @jwt_required()
 def add_song():
     data = request.get_json()
-    print("Received data:", data)
-
     title = data.get('title', '').strip()
     artist = data.get('artist', '').strip()
     album = data.get('album', '').strip()
     youtube_url = data.get('youtube_url')
+    duration = data.get('duration', '').strip()
     tag_names = data.get('tags', [])
-
     if not all([title, artist, album, youtube_url]):
         return jsonify({"error": "All fields are required"}), 400
 
-    song = Song(title=title, artist=artist, album=album, youtube_url=youtube_url)
+    song = Song(title=title, artist=artist, album=album, duration=duration, youtube_url=youtube_url)
     db.session.add(song)
     db.session.flush()
 
@@ -92,7 +95,6 @@ def add_song():
 
     db.session.commit()
     return jsonify({"message": "Song added successfully", "song_id": song.id}), 201
-
 
 @main.route("/songs/tag/<string:tag_name>")
 def songs_by_tag(tag_name):
@@ -168,7 +170,8 @@ def shuffle_playlist(playlist_id):
     random.shuffle(songs)
     return render_template("songs.html", songs=[ps.song for ps in songs], playlist=playlist)
 
-### QUEUE / RECENT / FAVORITES ###
+### QUEUE / RECENT / FAVORITES /play###
+
 
 @main.route("/queue/add/<int:song_id>")
 @jwt_required()
@@ -296,20 +299,11 @@ def admin_dashboard():
 def get_profile():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
-    return jsonify({"username": user.username, "email": user.email})
-
-@main.route("/profile", methods=["PUT"])
-@jwt_required()
-def update_profile():
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    data = request.get_json()
-    user.username = data.get("username", user.username)
-    user.email = data.get("email", user.email)
-    db.session.commit()
-    return jsonify({"message": "Profile updated"})
-
-@socketio.on("song_played")
-def handle_song_played(data):
-    print("Song Played:", data)
-    socketio.emit("song_played", data, broadcast=True)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify({
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "is_admin": user.is_admin
+    })
