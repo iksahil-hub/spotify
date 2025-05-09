@@ -9,7 +9,12 @@ import os
 import requests
 
 
+<<<<<<< HEAD
 main = Blueprint("main", __name__)
+=======
+main = Blueprint("main", __name__)  # ✅ correct
+
+>>>>>>> 725f07b (Initial commit or your custom message)
 user_playback_queues = {}
 user_recently_played = {}
 user_favorites = {}
@@ -306,4 +311,8 @@ def get_profile():
         "username": user.username,
         "email": user.email,
         "is_admin": user.is_admin
+<<<<<<< HEAD
     })
+=======
+    })
+>>>>>>> 725f07b (Initial commit or your custom message)

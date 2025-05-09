@@ -18,4 +18,8 @@ with app.app_context():
 
     print("\n📂 Playlists:")
     for playlist in Playlist.query.limit(5).all():
+<<<<<<< HEAD
         print(f" - {playlist.id}: {playlist.name} (User ID: {playlist.user_id})")
+=======
+        print(f" - {playlist.id}: {playlist.name} (User ID: {playlist.user_id})")
+>>>>>>> 725f07b (Initial commit or your custom message)
