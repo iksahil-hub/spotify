@@ -1,141 +1,99 @@
 // src/components/HomeContent.jsx
-import React, { useState, useEffect } from 'react';
-import { getRecentlyPlayed, fetchAllSongs } from '../Services/api';
-import Sidebar from '../components/Sidebar';
-import PlayerBar from '../components/PlayerBar';
+import React, { useEffect, useState } from 'react';
+import axiosInstance from '../utils/axiosInstance';
+import { usePlayer } from '../context/PlayerContext';
 
 const HomeContent = () => {
-  const [recentItems, setRecentItems] = useState([]);
-  const [recommended, setRecommended] = useState([]);
+  const { playSong } = usePlayer();
+  const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchSongs = async () => {
       try {
-        const [recentRes, recRes] = await Promise.all([
-          getRecentlyPlayed(),
-          fetchAllSongs(),
-        ]);
-        setRecentItems(recentRes.data || []);
-        setRecommended(recRes.data || []);
+        const response = await axiosInstance.get('/songs');
+        setSongs(response.data);
       } catch (err) {
-        console.error('Failed to fetch data:', err);
-        setError('Failed to load songs. Please try again.');
+        console.error("Failed to fetch songs", err);
+        setError("Failed to load songs. Please try again later.");
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+
+    fetchSongs();
   }, []);
 
   if (loading) {
-    return <p style={{ color: '#fff', padding: '20px' }}>Loading...</p>;
+    return <div style={styles.loader}>Loading songs...</div>;
   }
+
   if (error) {
-    return <p style={{ color: 'red', padding: '20px' }}>{error}</p>;
+    return <div style={styles.error}>{error}</div>;
   }
 
   return (
-    <div style={{ padding: '20px', color: 'white', fontFamily: 'Arial, sans-serif' }}>
-      {/* Good Evening */}
-      <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '20px' }}>Good evening</h2>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-          gap: '16px',
-          marginBottom: '40px',
-        }}
-      >
-        {recentItems.map((song) => (
+    <div style={styles.container}>
+      <h2 style={styles.heading}>Explore Songs</h2>
+      <div style={styles.grid}>
+        {songs.map((song) => (
           <div
-            key={song.id}
-            style={{
-              backgroundColor: '#2a2a2a',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '10px',
-              height: '60px',
-              cursor: 'pointer',
-            }}
-            onClick={() => window.location.href = `/song/${song.id}`}
+            key={song._id || song.id}
+            onClick={() => playSong(song)}
+            style={styles.card}
           >
-            {song.cover_url ? (
-              <img
-                src={song.cover_url}
-                alt={song.title}
-                style={{ width: '50px', height: '50px', borderRadius: '4px', marginRight: '10px' }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: '50px',
-                  height: '50px',
-                  backgroundColor: '#444',
-                  borderRadius: '4px',
-                  marginRight: '10px',
-                }}
-              ></div>
-            )}
-            <span style={{ fontWeight: 'bold' }}>{song.title}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Recommended For You */}
-      <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '20px' }}>Recommended for you</h2>
-      <div
-        style={{
-          display: 'flex',
-          gap: '16px',
-          overflowX: 'auto',
-          paddingBottom: '10px',
-        }}
-      >
-        {recommended.map((song) => (
-          <div
-            key={song.id}
-            style={{
-              minWidth: '160px',
-              backgroundColor: '#181818',
-              borderRadius: '8px',
-              padding: '10px',
-              cursor: 'pointer',
-              textAlign: 'center',
-            }}
-            onClick={() => window.location.href = `/song/${song.id}`}
-          >
-            {song.cover_url ? (
-              <img
-                src={song.cover_url}
-                alt={song.title}
-                style={{
-                  width: '100%',
-                  aspectRatio: '1 / 1',
-                  borderRadius: '6px',
-                  marginBottom: '10px',
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: '100%',
-                  paddingBottom: '100%',
-                  backgroundColor: '#333',
-                  borderRadius: '6px',
-                  marginBottom: '10px',
-                }}
-              ></div>
-            )}
-            <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{song.title}</div>
-            <div style={{ fontSize: '12px', color: '#b3b3b3' }}>{song.artist}</div>
+            <h4 style={styles.title}>{song.title}</h4>
+            <p style={styles.artist}>{song.artist}</p>
           </div>
         ))}
       </div>
     </div>
   );
+};
+
+const styles = {
+  container: {
+    padding: '2rem',
+    color: '#fff',
+    backgroundColor: '#121212',
+    minHeight: '100vh',
+  },
+  heading: {
+    marginBottom: '1rem',
+    fontSize: '1.8rem',
+  },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+    gap: '1rem',
+  },
+  card: {
+    backgroundColor: '#1e1e1e',
+    padding: '1rem',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    transition: 'transform 0.2s ease-in-out',
+    boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+  },
+  title: {
+    fontSize: '1.1rem',
+    marginBottom: '0.3rem',
+  },
+  artist: {
+    fontSize: '0.9rem',
+    color: '#999',
+  },
+  loader: {
+    padding: '2rem',
+    color: '#ccc',
+    fontSize: '1.2rem',
+  },
+  error: {
+    padding: '2rem',
+    color: '#ff6b6b',
+    fontSize: '1.2rem',
+  },
 };
 
 export default HomeContent;

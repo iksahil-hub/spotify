@@ -3,38 +3,33 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_tok
 from werkzeug.utils import secure_filename
 from app import db, socketio
 from app.models import User, Song, Playlist, PlaylistSong, Tag
-import random
-import json
 import os
+import random
 import requests
 
-
-<<<<<<< HEAD
 main = Blueprint("main", __name__)
-=======
-main = Blueprint("main", __name__)  # ✅ correct
 
->>>>>>> 725f07b (Initial commit or your custom message)
+UPLOAD_FOLDER = "app/static/uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+YOUTUBE_API_KEY = "AIzaSyAxoKdULhXnoOgC7QfLpnICULdpaiyB98I"
+
 user_playback_queues = {}
 user_recently_played = {}
 user_favorites = {}
 
-UPLOAD_FOLDER = "app/static/uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-YOUTUBE_API_KEY = "AIzaSyAxoKdULhXnoOgC7QfLpnICULdpaiyB98I"
-
-### AUTH ROUTES ###
+# --------- AUTH ROUTES --------- #
 
 @main.route('/')
 def home():
-    songs = Song.query.all()  # fetch songs from DB
+    songs = Song.query.all()
     return render_template('home.html', songs=songs)
 
 @main.route('/signup', methods=['POST'])
 def signup():
     data = request.get_json()
     username, email, password = data.get('username'), data.get('email'), data.get('password')
-    if not username or not email or not password:
+    if not all([username, email, password]):
         return jsonify({"error": "All fields are required"}), 400
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "Email already registered"}), 400
@@ -54,35 +49,36 @@ def login():
     token = create_access_token(identity=str(user.id))
     return jsonify({"message": "Login successful", "access_token": token}), 200
 
-### SONG ROUTES ###
+
+# --------- SONG ROUTES --------- #
 
 @main.route('/songs', methods=['GET'])
 def get_songs():
     songs = Song.query.all()
-    return jsonify([
-        {'id': s.id, 'title': s.title, 'artist': s.artist, 'album': s.album,
-         'duration': s.duration, 'youtube_url': s.youtube_url, 'is_public': s.is_public}
-        for s in songs
-    ])
+    return jsonify([{
+        'id': s.id, 'title': s.title, 'artist': s.artist,
+        'album': s.album, 'duration': s.duration,
+        'youtube_url': s.youtube_url, 'is_public': s.is_public
+    } for s in songs])
 
 @main.route('/songs/<int:song_id>', methods=['GET'])
 def get_song(song_id):
     s = Song.query.get(song_id)
     if not s:
         return jsonify({'error': 'Song not found'}), 404
-    return jsonify({'id': s.id, 'title': s.title, 'artist': s.artist,
-                    'album': s.album, 'duration': s.duration, 'youtube_url': s.youtube_url})
+    return jsonify({
+        'id': s.id, 'title': s.title, 'artist': s.artist,
+        'album': s.album, 'duration': s.duration, 'youtube_url': s.youtube_url
+    })
 
 @main.route('/songs', methods=['POST'])
 @jwt_required()
 def add_song():
     data = request.get_json()
-    title = data.get('title', '').strip()
-    artist = data.get('artist', '').strip()
-    album = data.get('album', '').strip()
-    youtube_url = data.get('youtube_url')
-    duration = data.get('duration', '').strip()
+    title, artist, album = data.get('title', '').strip(), data.get('artist', '').strip(), data.get('album', '').strip()
+    youtube_url, duration = data.get('youtube_url'), data.get('duration', '').strip()
     tag_names = data.get('tags', [])
+    
     if not all([title, artist, album, youtube_url]):
         return jsonify({"error": "All fields are required"}), 400
 
@@ -101,12 +97,12 @@ def add_song():
     db.session.commit()
     return jsonify({"message": "Song added successfully", "song_id": song.id}), 201
 
-@main.route("/songs/tag/<string:tag_name>")
+@main.route('/songs/tag/<string:tag_name>')
 def songs_by_tag(tag_name):
     tag = Tag.query.filter_by(name=tag_name).first_or_404()
     return render_template("songs.html", songs=tag.songs, tag=tag_name)
 
-@main.route("/songs/search")
+@main.route('/songs/search')
 def search_songs():
     q = request.args.get("q", "").strip()
     if not q:
@@ -116,28 +112,28 @@ def search_songs():
                               Song.album.ilike(f"%{q}%")).all()
     return render_template("songs.html", songs=songs, query=q)
 
-@main.route("/songs/page")
+@main.route('/songs/page')
 def list_songs():
     songs = Song.query.filter(Song.youtube_url.isnot(None)).all()
     return render_template("songs.html", songs=songs)
 
-@main.route("/play/<int:song_id>")
+@main.route('/play/<int:song_id>')
 def play_song(song_id):
     song = Song.query.get(song_id)
     if not song or not song.youtube_url:
         return "❌ Song not found or no YouTube URL.", 404
     return render_template("play.html", song=song)
 
-### PLAYLIST ROUTES ###
+
+# --------- PLAYLIST ROUTES --------- #
 
 @main.route('/playlists', methods=['POST'])
 @jwt_required()
 def create_playlist():
     name = request.get_json().get('name')
-    user_id = get_jwt_identity()
     if not name:
         return jsonify({'error': 'Playlist name is required'}), 400
-    playlist = Playlist(name=name, user_id=user_id)
+    playlist = Playlist(name=name, user_id=get_jwt_identity())
     db.session.add(playlist)
     db.session.commit()
     return jsonify({'message': 'Playlist created', 'playlist_id': playlist.id}), 201
@@ -145,9 +141,10 @@ def create_playlist():
 @main.route('/playlists', methods=['GET'])
 @jwt_required()
 def get_user_playlists():
-    user_id = get_jwt_identity()
-    playlists = Playlist.query.filter_by(user_id=user_id).all()
-    return jsonify([{'id': pl.id, 'name': pl.name, 'created_at': pl.created_at} for pl in playlists]), 200
+    playlists = Playlist.query.filter_by(user_id=get_jwt_identity()).all()
+    return jsonify([{
+        'id': p.id, 'name': p.name, 'created_at': p.created_at
+    } for p in playlists])
 
 @main.route('/playlists/<int:playlist_id>/songs', methods=['POST'])
 @jwt_required()
@@ -164,28 +161,28 @@ def add_song_to_playlist(playlist_id):
 def get_playlist_songs(playlist_id):
     playlist = Playlist.query.get_or_404(playlist_id)
     return jsonify([{
-        'id': ps.song.id, 'title': ps.song.title,
-        'artist': ps.song.artist, 'album': ps.song.album, 'duration': ps.song.duration
+        'id': ps.song.id, 'title': ps.song.title, 'artist': ps.song.artist,
+        'album': ps.song.album, 'duration': ps.song.duration
     } for ps in playlist.songs])
 
-@main.route("/playlists/<int:playlist_id>/shuffle")
+@main.route('/playlists/<int:playlist_id>/shuffle')
 def shuffle_playlist(playlist_id):
     playlist = Playlist.query.get_or_404(playlist_id)
     songs = list(playlist.songs)
     random.shuffle(songs)
     return render_template("songs.html", songs=[ps.song for ps in songs], playlist=playlist)
 
-### QUEUE / RECENT / FAVORITES /play###
 
+# --------- QUEUE / RECENT / FAVORITES --------- #
 
-@main.route("/queue/add/<int:song_id>")
+@main.route('/queue/add/<int:song_id>')
 @jwt_required()
 def add_to_queue(song_id):
     user_id = str(get_jwt_identity())
     user_playback_queues.setdefault(user_id, []).append(song_id)
     return jsonify({"message": "Added to queue", "queue": user_playback_queues[user_id]})
 
-@main.route("/queue/remove/<int:song_id>")
+@main.route('/queue/remove/<int:song_id>')
 @jwt_required()
 def remove_from_queue(song_id):
     user_id = str(get_jwt_identity())
@@ -194,7 +191,7 @@ def remove_from_queue(song_id):
         return jsonify({"message": "Removed from queue"}), 200
     return jsonify({"error": "Song not in queue"}), 404
 
-@main.route("/queue/next")
+@main.route('/queue/next')
 @jwt_required()
 def next_in_queue():
     user_id = str(get_jwt_identity())
@@ -214,14 +211,14 @@ def recent_songs():
     songs = Song.query.filter(Song.id.in_(song_ids)).all()
     return jsonify([{'id': s.id, 'title': s.title} for s in songs])
 
-@main.route("/favorites/add/<int:song_id>")
+@main.route('/favorites/add/<int:song_id>')
 @jwt_required()
 def add_favorite(song_id):
     user_id = str(get_jwt_identity())
     user_favorites.setdefault(user_id, set()).add(song_id)
     return jsonify({"message": "Added to favorites"})
 
-@main.route("/favorites", methods=["GET"])
+@main.route('/favorites', methods=['GET'])
 @jwt_required()
 def get_favorites():
     user_id = str(get_jwt_identity())
@@ -229,21 +226,25 @@ def get_favorites():
     songs = Song.query.filter(Song.id.in_(song_ids)).all()
     return jsonify([{'id': s.id, 'title': s.title} for s in songs])
 
-### EXTRA FEATURES ###
 
-@main.route("/lyrics/<int:song_id>")
+# --------- EXTRA FEATURES --------- #
+
+@main.route('/lyrics/<int:song_id>')
 def get_lyrics(song_id):
     song = Song.query.get(song_id)
     if not song:
         return jsonify({"error": "Song not found"}), 404
-    return jsonify({"title": song.title, "lyrics": f"Lyrics for {song.title} by {song.artist} coming soon."})
+    return jsonify({
+        "title": song.title,
+        "lyrics": f"Lyrics for {song.title} by {song.artist} coming soon."
+    })
 
-@main.route("/youtube/search")
+@main.route('/youtube/search')
 def youtube_search_stub():
     query = request.args.get("q")
     return jsonify({"message": f"Simulated YouTube search for '{query}'"})
 
-@main.route("/youtube/real_search")
+@main.route('/youtube/real_search')
 def real_youtube_search():
     query = request.args.get("q")
     if not query:
@@ -254,65 +255,40 @@ def real_youtube_search():
         return jsonify({"error": "YouTube API error"}), 500
     return jsonify(response.json())
 
-@main.route("/songs/bulk_upload", methods=["POST"])
+@main.route('/songs/bulk_upload', methods=['POST'])
 def bulk_upload_songs():
     try:
         data = request.get_json()
         for s in data:
-            song = Song(title=s["title"], artist=s["artist"],
-                        album=s["album"], duration=s["duration"],
-                        youtube_url=s.get("youtube_url"))
+            song = Song(title=s["title"], artist=s["artist"], album=s["album"],
+                        duration=s["duration"], youtube_url=s.get("youtube_url"))
             db.session.add(song)
         db.session.commit()
         return jsonify({"message": "Bulk upload successful!"})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-@main.route("/songs/upload", methods=["POST"])
+@main.route('/songs/upload', methods=['POST'])
 @jwt_required()
 def upload_song():
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
     file = request.files["file"]
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
     filename = secure_filename(file.filename)
-    file.save(os.path.join(UPLOAD_FOLDER, filename))
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(file_path)
+
     data = request.form
-    song = Song(
-        title=data.get("title"),
-        artist=data.get("artist"),
-        album=data.get("album"),
-        duration=data.get("duration"),
-        youtube_url=f"/static/uploads/{filename}"
-    )
+    title = data.get("title")
+    artist = data.get("artist")
+    album = data.get("album")
+    duration = data.get("duration")
+
+    song = Song(title=title, artist=artist, album=album, duration=duration, youtube_url=file_path)
     db.session.add(song)
     db.session.commit()
-    return jsonify({"message": "Uploaded and saved"}), 201
 
-@main.route("/admin/dashboard")
-@jwt_required()
-def admin_dashboard():
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    if not getattr(user, "is_admin", False):
-        return jsonify({"error": "Admin access required"}), 403
-    users = User.query.all()
-    songs = Song.query.all()
-    return render_template("admin_dashboard.html", users=users, songs=songs)
-
-@main.route("/profile", methods=["GET"])
-@jwt_required()
-def get_profile():
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-    return jsonify({
-        "id": user.id,
-        "username": user.username,
-        "email": user.email,
-        "is_admin": user.is_admin
-<<<<<<< HEAD
-    })
-=======
-    })
->>>>>>> 725f07b (Initial commit or your custom message)
+    return jsonify({"message": "Song uploaded successfully", "path": file_path})

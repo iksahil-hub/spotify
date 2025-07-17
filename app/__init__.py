@@ -5,8 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_socketio import SocketIO
 from flask_jwt_extended import JWTManager
-from flask_cors import CORS  # <-- ADD THIS
-
+from flask_cors import CORS
 
 # Load environment variables from .env file
 load_dotenv()
@@ -15,22 +14,18 @@ load_dotenv()
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
-socketio = SocketIO(cors_allowed_origins="*")
+socketio = SocketIO(cors_allowed_origins="*")  # Optional: add async_mode if needed
 
 def create_app():
     app = Flask(__name__)
 
     # Enable CORS
-    CORS(app)  # <-- ADD THIS
+    CORS(app)
 
     # Configuration
     base_dir = os.path.abspath(os.path.dirname(__file__))
     instance_db_path = os.path.join(base_dir, '..', 'instance', 'database.db')
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", f"sqlite:///{instance_db_path}")
-<<<<<<< HEAD
-
-=======
->>>>>>> 725f07b (Initial commit or your custom message)
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "your-secret-key")
 
@@ -46,9 +41,8 @@ def create_app():
     # Register blueprints/routes
     from app.routes import main
     app.register_blueprint(main)
+
     return app
 
-   
-    
 # Export for external access
 __all__ = ['db', 'socketio']
